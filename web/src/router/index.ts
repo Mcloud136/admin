@@ -56,12 +56,6 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '知识库', icon: 'icon-book' },
       },
       {
-        path: 'schedule',
-        name: 'Schedule',
-        component: () => import('@/views/schedule/index.vue'),
-        meta: { title: '排班管理', icon: 'icon-calendar', roles: ['admin', 'supervisor'] },
-      },
-      {
         path: 'assets',
         name: 'Assets',
         component: () => import('@/views/asset/index.vue'),

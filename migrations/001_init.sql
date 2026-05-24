@@ -110,17 +110,6 @@ CREATE TABLE IF NOT EXISTS knowledge_articles (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS schedules (
-    id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL REFERENCES users(id),
-    date VARCHAR(10) NOT NULL,
-    shift_type VARCHAR(20) NOT NULL,
-    remark TEXT DEFAULT '',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-CREATE INDEX idx_schedules_user_date ON schedules(user_id, date);
-
 CREATE TABLE IF NOT EXISTS monitor_alerts (
     id BIGSERIAL PRIMARY KEY,
     source VARCHAR(50) NOT NULL,
@@ -162,7 +151,6 @@ CREATE INDEX idx_operation_logs_user ON operation_logs(user_id);
 DROP TABLE IF EXISTS operation_logs;
 DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS monitor_alerts;
-DROP TABLE IF EXISTS schedules;
 DROP TABLE IF EXISTS knowledge_articles;
 DROP TABLE IF EXISTS scores;
 DROP TABLE IF EXISTS ticket_logs;

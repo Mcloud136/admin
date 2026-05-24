@@ -4,7 +4,7 @@
 
 企业 IT 部门运维人员管理平台，用于管理工单流转、工程师绩效、项目进度等。
 
-**技术栈：** Vue 3 + Arco Design Vue (前端) | Go + Gin + sqlx (后端) | PostgreSQL (数据库)
+**技术栈：** Vue 3 + Arco Design Vue + TipTap + ECharts + Lucide Icons (前端) | Go + Gin + sqlx (后端) | PostgreSQL 17 (数据库)
 
 ---
 

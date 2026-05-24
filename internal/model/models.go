@@ -107,6 +107,7 @@ type Project struct {
 	StartDate       *time.Time `json:"start_date" db:"start_date"`
 	EndDate         *time.Time `json:"end_date" db:"end_date"`
 	ActualEndDate   *time.Time `json:"actual_end_date" db:"actual_end_date"`
+	Rectification   string     `json:"rectification" db:"rectification"`
 	CreatedAt       time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at" db:"updated_at"`
 }
@@ -116,6 +117,15 @@ type ProjectMember struct {
 	ProjectID int64     `json:"project_id" db:"project_id"`
 	UserID    int64     `json:"user_id" db:"user_id"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
+}
+
+type ProjectRectification struct {
+	ID         int64     `json:"id" db:"id"`
+	ProjectID  int64     `json:"project_id" db:"project_id"`
+	Type       string    `json:"type" db:"type"`
+	Content    string    `json:"content" db:"content"`
+	OperatorID int64     `json:"operator_id" db:"operator_id"`
+	CreatedAt  time.Time `json:"created_at" db:"created_at"`
 }
 
 type Score struct {
@@ -148,18 +158,6 @@ type Schedule struct {
 	ShiftType string    `json:"shift_type" db:"shift_type"`
 	Remark    string    `json:"remark" db:"remark"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
-}
-
-type Asset struct {
-	ID        int64     `json:"id" db:"id"`
-	Name      string    `json:"name" db:"name"`
-	Type      string    `json:"type" db:"type"`
-	IP        string    `json:"ip" db:"ip"`
-	Status    string    `json:"status" db:"status"`
-	Location  string    `json:"location" db:"location"`
-	Metadata  []byte    `json:"metadata" db:"metadata"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
 type MonitorAlert struct {

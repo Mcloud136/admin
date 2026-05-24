@@ -30,6 +30,8 @@ func main() {
 	ticketRepo := repository.NewTicketRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
 	completionRepo := repository.NewCompletionRepository(db)
+	kbRepo := repository.NewKnowledgeRepository(db)
+	assetRepo := repository.NewAssetRepository(db)
 
 	// Services
 	userService := service.NewUserService(userRepo, cfg)
@@ -37,6 +39,8 @@ func main() {
 	ticketService := service.NewTicketService(ticketRepo)
 	projectService := service.NewProjectService(projectRepo)
 	completionService := service.NewCompletionService(completionRepo)
+	kbService := service.NewKnowledgeService(kbRepo)
+	assetService := service.NewAssetService(assetRepo)
 	ticketService.SetCompletionService(completionService)
 
 	// Handlers
@@ -45,9 +49,11 @@ func main() {
 	ticketHandler := handler.NewTicketHandler(ticketService, userService)
 	projectHandler := handler.NewProjectHandler(projectService)
 	completionHandler := handler.NewCompletionHandler(completionService)
+	knowledgeHandler := handler.NewKnowledgeHandler(kbService)
+	assetHandler := handler.NewAssetHandler(assetService)
 
 	// Router
-	r := router.Setup(userHandler, teamHandler, ticketHandler, projectHandler, completionHandler)
+	r := router.Setup(userHandler, teamHandler, ticketHandler, projectHandler, completionHandler, knowledgeHandler, assetHandler)
 
 	log.Printf("Server starting on port %s", cfg.Server.Port)
 	if err := r.Run(":" + cfg.Server.Port); err != nil {

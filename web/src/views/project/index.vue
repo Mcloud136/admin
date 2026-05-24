@@ -53,7 +53,7 @@
               </a-select>
             </a-form-item>
           </a-col>
-          <a-col :span="8">
+          <a-col :span="6">
             <a-form-item field="priority" label="优先级">
               <a-select v-model="form.priority">
                 <a-option value="high">高</a-option>
@@ -62,7 +62,18 @@
               </a-select>
             </a-form-item>
           </a-col>
-          <a-col :span="8">
+          <a-col :span="6" v-if="editing">
+            <a-form-item field="status" label="状态">
+              <a-select v-model="form.status">
+                <a-option value="active">进行中</a-option>
+                <a-option value="review">待验收</a-option>
+                <a-option value="rectifying">整改中</a-option>
+                <a-option value="completed">已完成</a-option>
+                <a-option value="suspended">已暂停</a-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="6">
             <a-form-item field="budget" label="预算（元）">
               <a-input-number v-model="form.budget" :min="0" :precision="2" placeholder="可留空" style="width: 100%" />
             </a-form-item>
@@ -133,12 +144,57 @@
           </a-space>
           <span v-else>-</span>
         </a-descriptions-item>
-        <a-descriptions-item label="开始日期">{{ detailProject.start_date || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="计划结束">{{ detailProject.end_date || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="实际完成">{{ detailProject.actual_end_date || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="开始日期">{{ formatDate(detailProject.start_date) || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="计划结束">{{ formatDate(detailProject.end_date) || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="实际完成">{{ formatDate(detailProject.actual_end_date) || '-' }}</a-descriptions-item>
         <a-descriptions-item label="描述" :span="2">{{ detailProject.description || '-' }}</a-descriptions-item>
         <a-descriptions-item label="备注" :span="2">{{ detailProject.remark || '-' }}</a-descriptions-item>
       </a-descriptions>
+
+      <!-- Review button (待验收 status) -->
+      <div v-if="isAdminOrSupervisor && detailProject?.status === 'review'" style="margin-top: 16px">
+        <a-space>
+          <a-button type="primary" status="success" @click="showReviewModal = true">提交验收</a-button>
+        </a-space>
+      </div>
+
+      <!-- Rectify buttons (整改中 status) -->
+      <div v-if="isAdminOrSupervisor && detailProject?.status === 'rectifying'" style="margin-top: 16px">
+        <a-space>
+          <a-button type="primary" status="success" @click="handleRectifyApprove">整改验收通过</a-button>
+          <a-button type="primary" status="warning" @click="showRectifyRejectModal = true">驳回</a-button>
+        </a-space>
+      </div>
+
+      <!-- Rectification history -->
+      <template v-if="rectifications.length > 0">
+        <a-divider>整改记录</a-divider>
+        <a-timeline>
+          <a-timeline-item v-for="rec in rectifications" :key="rec.id"
+            :dot-color="rec.type === 'rectification' ? 'blue' : 'red'">
+            <a-card size="small" :bordered="true" style="margin-bottom: 8px">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 8px">
+                <a-tag :color="rec.type === 'rectification' ? 'blue' : 'red'" size="small">
+                  {{ rec.type === 'rectification' ? '整改提交' : '驳回意见' }}
+                </a-tag>
+                <span style="color: #86909c; font-size: 12px">
+                  {{ getOperatorName(rec.operator_id) }} · {{ formatDate(rec.created_at) }}
+                </span>
+              </div>
+              <p style="white-space: pre-wrap; margin: 0">{{ rec.content }}</p>
+              <div v-if="rec.type === 'rectification'" style="margin-top: 8px; color: #86909c; font-size: 12px">
+                当时负责人：{{ getManagerName(detailProject.manager_id) }}，
+                项目成员：<template v-if="detailMembers.length > 0">
+                  <span v-for="(m, idx) in detailMembers" :key="m.id">
+                    {{ m.real_name || m.username }}<span v-if="idx < detailMembers.length - 1">、</span>
+                  </span>
+                </template>
+                <span v-else>无</span>
+              </div>
+            </a-card>
+          </a-timeline-item>
+        </a-timeline>
+      </template>
 
       <a-divider>关联工单（{{ projectTickets.length }}）</a-divider>
       <a-table :columns="ticketColumns" :data="projectTickets" :pagination="false" size="small" :scroll="{ y: 300 }">
@@ -155,8 +211,32 @@
           <a-link size="small" @click="goTicketDetail(record.id)">查看</a-link>
         </template>
       </a-table>
-      <a-empty v-if="projectTickets.length === 0" description="暂无关联工单" />
     </a-drawer>
+
+    <!-- Review Modal (待验收) -->
+    <a-modal v-model:visible="showReviewModal" title="项目验收" @cancel="showReviewModal = false" :footer="false">
+      <a-space direction="vertical" style="width: 100%" :size="16">
+        <a-button type="primary" status="success" long size="large" @click="handleReview(true)">
+          <icon-check-circle /> 验收完成
+        </a-button>
+        <a-divider style="margin: 4px 0">或</a-divider>
+        <div>
+          <a-textarea v-model="rectificationContent" placeholder="请输入整改内容..." :max-length="2000" show-word-limit />
+          <a-button type="primary" status="warning" long style="margin-top: 8px" :disabled="!rectificationContent" @click="handleSubmitRectification">
+            <icon-edit /> 提交整改
+          </a-button>
+        </div>
+      </a-space>
+    </a-modal>
+
+    <!-- Rectify Reject Modal (整改中驳回) -->
+    <a-modal v-model:visible="showRectifyRejectModal" title="驳回整改" @cancel="showRectifyRejectModal = false" @ok="handleRectifyReject">
+      <a-form layout="vertical">
+        <a-form-item label="驳回意见" required>
+          <a-textarea v-model="rejectContent" placeholder="请输入驳回意见..." :max-length="2000" show-word-limit />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
@@ -180,12 +260,18 @@ const showDrawer = ref(false)
 const detailProject = ref<any>(null)
 const detailMembers = ref<any[]>([])
 const projectTickets = ref<any[]>([])
+const showReviewModal = ref(false)
+const showRectifyRejectModal = ref(false)
+const rectificationContent = ref('')
+const rejectContent = ref('')
+const rectifications = ref<any[]>([])
 
 const defaultForm = () => ({
   name: '',
   description: '',
   type: 'daily',
   priority: 'medium',
+  status: 'active',
   requester: '',
   manager_id: undefined as number | undefined,
   member_ids: [] as number[],
@@ -216,11 +302,17 @@ const columns = computed(() => {
   return cols
 })
 
-const statusColor = (s: string) => ({ active: 'green', completed: 'blue', suspended: 'orange' }[s] || 'gray')
-const statusText = (s: string) => ({ active: '进行中', completed: '已结束', suspended: '已暂停' }[s] || s)
+const statusColor = (s: string) => ({ active: 'green', review: 'orange', rectifying: 'red', completed: 'blue', suspended: 'gray' }[s] || 'gray')
+const statusText = (s: string) => ({ active: '进行中', review: '待验收', rectifying: '整改中', completed: '已完成', suspended: '已暂停' }[s] || s)
 const typeText = (t: string) => ({ daily: '日常运维', special: '专项任务', emergency: '应急响应', patrol: '巡检项目' }[t] || t)
 const priorityColor = (p: string) => ({ high: 'red', medium: 'orange', low: 'blue' }[p] || 'gray')
 const priorityText = (p: string) => ({ high: '高', medium: '中', low: '低' }[p] || p)
+
+const formatDate = (val: any): string => {
+  if (!val) return ''
+  if (typeof val === 'string' && val.length >= 10) return val.substring(0, 10)
+  return ''
+}
 
 const ticketColumns = [
   { title: 'ID', dataIndex: 'id', width: 60 },
@@ -252,6 +344,7 @@ const openDetail = async (p: any) => {
   detailProject.value = p
   detailMembers.value = []
   projectTickets.value = []
+  rectifications.value = []
   showDrawer.value = true
 
   try {
@@ -259,6 +352,7 @@ const openDetail = async (p: any) => {
     detailProject.value = result.project || p
     const memberIDs = result.member_ids || []
     detailMembers.value = users.value.filter(u => memberIDs.includes(u.id))
+    rectifications.value = result.rectifications || []
   } catch (e) {}
 
   try {
@@ -293,29 +387,38 @@ const editProject = async (p: any) => {
   editing.value = p
   try {
     const result = await request.get(`/projects/${p.id}`) as any
-    const project = result.project
+    const project = result.project || p
     const memberIDs = result.member_ids || []
     Object.assign(form, {
-      name: project.name,
-      description: project.description,
+      name: project.name || '',
+      description: project.description || '',
       type: project.type || 'daily',
       priority: project.priority || 'medium',
+      status: project.status || 'active',
       requester: project.requester || '',
       manager_id: project.manager_id,
       member_ids: memberIDs,
-      budget: project.budget,
+      budget: project.budget ?? undefined,
       remark: project.remark || '',
-      start_date: project.start_date,
-      end_date: project.end_date,
-      actual_end_date: project.actual_end_date,
+      start_date: formatDate(project.start_date),
+      end_date: formatDate(project.end_date),
+      actual_end_date: formatDate(project.actual_end_date),
     })
   } catch (e) {
     Object.assign(form, {
-      name: p.name, description: p.description, type: p.type || 'daily',
-      priority: p.priority || 'medium', requester: p.requester || '',
-      manager_id: p.manager_id, member_ids: [], budget: p.budget,
-      remark: p.remark || '', start_date: p.start_date, end_date: p.end_date,
-      actual_end_date: p.actual_end_date,
+      name: p.name || '',
+      description: p.description || '',
+      type: p.type || 'daily',
+      priority: p.priority || 'medium',
+      status: p.status || 'active',
+      requester: p.requester || '',
+      manager_id: p.manager_id,
+      member_ids: [],
+      budget: p.budget ?? undefined,
+      remark: p.remark || '',
+      start_date: formatDate(p.start_date),
+      end_date: formatDate(p.end_date),
+      actual_end_date: formatDate(p.actual_end_date),
     })
   }
   showModal.value = true
@@ -353,6 +456,64 @@ const handleDelete = (id: number) => {
       fetchProjects()
     },
   })
+}
+
+const handleReview = async (approved: boolean) => {
+  if (!detailProject.value) return
+  try {
+    await request.post(`/projects/${detailProject.value.id}/review`, { approved })
+    Message.success('验收通过，项目已完成')
+    showReviewModal.value = false
+    refreshDetail()
+  } catch (e) {}
+}
+
+const handleSubmitRectification = async () => {
+  if (!detailProject.value || !rectificationContent.value) return
+  try {
+    await request.post(`/projects/${detailProject.value.id}/rectification`, { content: rectificationContent.value })
+    Message.success('已提交整改')
+    showReviewModal.value = false
+    rectificationContent.value = ''
+    refreshDetail()
+  } catch (e) {}
+}
+
+const handleRectifyApprove = async () => {
+  if (!detailProject.value) return
+  try {
+    await request.post(`/projects/${detailProject.value.id}/rectification/approve`)
+    Message.success('整改验收通过，项目已完成')
+    refreshDetail()
+  } catch (e) {}
+}
+
+const handleRectifyReject = async () => {
+  if (!detailProject.value || !rejectContent.value) return
+  try {
+    await request.post(`/projects/${detailProject.value.id}/rectification/reject`, { content: rejectContent.value })
+    Message.success('已驳回，项目回到整改中')
+    showRectifyRejectModal.value = false
+    rejectContent.value = ''
+    refreshDetail()
+  } catch (e) {}
+}
+
+const refreshDetail = async () => {
+  if (!detailProject.value) return
+  try {
+    const result = await request.get(`/projects/${detailProject.value.id}`) as any
+    detailProject.value = result.project
+    const memberIDs = result.member_ids || []
+    detailMembers.value = users.value.filter(u => memberIDs.includes(u.id))
+    rectifications.value = result.rectifications || []
+    fetchProjects()
+  } catch (e) {}
+}
+
+const getOperatorName = (id: number) => {
+  const user = users.value.find(u => u.id === id)
+  return user ? (user.real_name || user.username) : `ID:${id}`
 }
 
 onMounted(() => {

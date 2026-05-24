@@ -73,6 +73,7 @@ type CreateProjectRequest struct {
 	Description   string   `json:"description"`
 	Type          string   `json:"type"`
 	Priority      string   `json:"priority"`
+	Status        string   `json:"status"`
 	Requester     string   `json:"requester"`
 	ManagerID     int64    `json:"manager_id" binding:"required"`
 	MemberIDs     []int64  `json:"member_ids"`
@@ -80,6 +81,7 @@ type CreateProjectRequest struct {
 	Remark        string   `json:"remark"`
 	StartDate     *string  `json:"start_date"`
 	EndDate       *string  `json:"end_date"`
+	ActualEndDate *string  `json:"actual_end_date"`
 }
 
 type CreateArticleRequest struct {

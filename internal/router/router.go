@@ -14,6 +14,8 @@ func Setup(
 	ticketHandler *handler.TicketHandler,
 	projectHandler *handler.ProjectHandler,
 	completionHandler *handler.CompletionHandler,
+	knowledgeHandler *handler.KnowledgeHandler,
+	assetHandler *handler.AssetHandler,
 ) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery())
@@ -73,6 +75,11 @@ func Setup(
 				projectsMgmt.POST("", projectHandler.Create)
 				projectsMgmt.PUT("/:id", projectHandler.Update)
 				projectsMgmt.DELETE("/:id", projectHandler.Delete)
+				projectsMgmt.POST("/:id/review", projectHandler.Review)
+				projectsMgmt.POST("/:id/rectification", projectHandler.SubmitRectification)
+				projectsMgmt.POST("/:id/rectification/reject", projectHandler.RejectRectification)
+				projectsMgmt.POST("/:id/rectification/approve", projectHandler.RectifyApprove)
+				projectsMgmt.GET("/:id/rectifications", projectHandler.GetRectifications)
 			}
 
 			// Tickets
@@ -104,6 +111,31 @@ func Setup(
 				completions.GET("/:id/files", completionHandler.ListFiles)
 				completions.GET("/:id/files/:file_id/download", completionHandler.DownloadFile)
 				completions.DELETE("/:id/files/:file_id", completionHandler.DeleteFile)
+			}
+
+			// Knowledge base
+			kb := auth.Group("/knowledge")
+			{
+				kb.GET("/categories", knowledgeHandler.ListCategories)
+				kb.GET("/articles", knowledgeHandler.ListArticles)
+				kb.GET("/articles/:id", knowledgeHandler.GetArticle)
+				kb.POST("/articles", knowledgeHandler.CreateArticle)
+				kb.PUT("/articles/:id", knowledgeHandler.UpdateArticle)
+				kb.DELETE("/articles/:id", knowledgeHandler.DeleteArticle)
+				kb.POST("/articles/:id/files", knowledgeHandler.UploadFile)
+				kb.GET("/articles/:id/files", knowledgeHandler.ListFiles)
+				kb.GET("/articles/:id/files/:file_id/download", knowledgeHandler.DownloadFile)
+				kb.DELETE("/articles/:id/files/:file_id", knowledgeHandler.DeleteFile)
+			}
+
+			// Assets
+			assets := auth.Group("/assets")
+			{
+				assets.GET("", assetHandler.List)
+				assets.GET("/:id", assetHandler.GetByID)
+				assets.POST("", middleware.RBAC(model.RoleAdmin, model.RoleSupervisor), assetHandler.Create)
+				assets.PUT("/:id", middleware.RBAC(model.RoleAdmin, model.RoleSupervisor), assetHandler.Update)
+				assets.DELETE("/:id", middleware.RBAC(model.RoleAdmin), assetHandler.Delete)
 			}
 		}
 	}

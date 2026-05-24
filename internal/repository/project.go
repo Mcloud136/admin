@@ -43,11 +43,23 @@ func (r *ProjectRepository) List() ([]model.Project, error) {
 
 func (r *ProjectRepository) Update(project *model.Project) error {
 	query := `UPDATE projects SET name=$1, description=$2, type=$3, priority=$4, status=$5, requester=$6,
-		manager_id=$7, budget=$8, remark=$9, start_date=$10, end_date=$11, actual_end_date=$12, updated_at=NOW() WHERE id=$13`
+		manager_id=$7, budget=$8, remark=$9, start_date=$10, end_date=$11, actual_end_date=$12,
+		rectification=$13, updated_at=NOW() WHERE id=$14`
 	_, err := r.db.Exec(query,
 		project.Name, project.Description, project.Type, project.Priority, project.Status,
 		project.Requester, project.ManagerID, project.Budget, project.Remark,
-		project.StartDate, project.EndDate, project.ActualEndDate, project.ID)
+		project.StartDate, project.EndDate, project.ActualEndDate, project.Rectification, project.ID)
+	return err
+}
+
+func (r *ProjectRepository) UpdateStatus(id int64, status string) error {
+	_, err := r.db.Exec("UPDATE projects SET status=$1, updated_at=NOW() WHERE id=$2", status, id)
+	return err
+}
+
+func (r *ProjectRepository) UpdateRectification(id int64, status, rectification string) error {
+	_, err := r.db.Exec("UPDATE projects SET status=$1, rectification=$2, updated_at=NOW() WHERE id=$3",
+		status, rectification, id)
 	return err
 }
 
@@ -88,4 +100,18 @@ func (r *ProjectRepository) GetMemberIDs(projectID int64) ([]int64, error) {
 	var ids []int64
 	err := r.db.Select(&ids, "SELECT user_id FROM project_members WHERE project_id = $1", projectID)
 	return ids, err
+}
+
+// Rectification history
+func (r *ProjectRepository) AddRectification(rec *model.ProjectRectification) error {
+	query := `INSERT INTO project_rectifications (project_id, type, content, operator_id)
+		VALUES ($1, $2, $3, $4) RETURNING id, created_at`
+	return r.db.QueryRow(query, rec.ProjectID, rec.Type, rec.Content, rec.OperatorID).
+		Scan(&rec.ID, &rec.CreatedAt)
+}
+
+func (r *ProjectRepository) GetRectifications(projectID int64) ([]model.ProjectRectification, error) {
+	var recs []model.ProjectRectification
+	err := r.db.Select(&recs, "SELECT * FROM project_rectifications WHERE project_id = $1 ORDER BY created_at", projectID)
+	return recs, err
 }
