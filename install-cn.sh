@@ -5,10 +5,6 @@ set -e
 # 运维管理平台 - 一键安装脚本（国内版）
 # ============================================
 
-GITEE_USER="wxbns"
-GITEE_REPO="Team-Management"
-RAW_BASE="https://gitee.com/wxbns/Team-Management/raw/main"
-
 WORK_DIR=$(pwd)
 
 echo "=========================================="
@@ -103,55 +99,8 @@ echo ""
 echo "[3/8] 下载项目文件 (Gitee)..."
 echo "-------------------------------------------"
 
-download_file() {
-    local url="$1"
-    local dest="$2"
-    local name=$(basename "$dest")
-    local max_retries=3
-    local retry=0
-
-    while [ $retry -lt $max_retries ]; do
-        echo "   >> 下载 $name"
-        if curl -L --connect-timeout 15 --max-time 300 "$url" -o "$dest"; then
-            echo "   [OK] $name"
-            return 0
-        fi
-        retry=$((retry + 1))
-        echo "   [RETRY] $name ($retry/$max_retries)"
-        sleep 3
-    done
-
-    echo "   [FAIL] $name - $url"
-    return 1
-}
-
-echo ">> 下载后端二进制"
-download_file "${RAW_BASE}/ops-server" "$WORK_DIR/ops-server"
-
-echo ">> 下载守护进程"
-download_file "${RAW_BASE}/ops-supervisor" "$WORK_DIR/ops-supervisor"
-
-echo ">> 下载前端文件"
-download_file "${RAW_BASE}/index.html" "$WORK_DIR/index.html"
-download_file "${RAW_BASE}/.env.example" "$WORK_DIR/.env.example"
-
-echo ""
-echo ">> 下载前端资源 assets/"
-mkdir -p "$WORK_DIR/assets"
-
-ASSET_URL="https://gitee.com/api/v5/repos/${GITEE_USER}/${GITEE_REPO}/contents/assets"
-echo "   >> 获取文件列表: $ASSET_URL"
-ASSET_FILES=$(curl -s --connect-timeout 15 "$ASSET_URL" | grep -o '"name":"[^"]*"' | sed 's/"name":"//;s/"//' || echo "")
-
-if [ -n "$ASSET_FILES" ]; then
-    COUNT=$(echo "$ASSET_FILES" | wc -w)
-    echo "   >> 共 $COUNT 个文件"
-    for f in $ASSET_FILES; do
-        download_file "${RAW_BASE}/assets/${f}" "$WORK_DIR/assets/${f}"
-    done
-else
-    echo "   [WARN] 无法获取资源列表，请手动下载 assets/ 目录"
-fi
+echo ">> git clone https://gitee.com/wxbns/Team-Management.git ./"
+git clone https://gitee.com/wxbns/Team-Management.git ./
 echo "[OK] 项目文件下载完成"
 
 # ============================================

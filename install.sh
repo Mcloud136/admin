@@ -1,7 +1,6 @@
 #!/bin/bash
 set -e
 
-REPO="https://github.com/Mcloud136/admin.git"
 WORK_DIR=$(pwd)
 
 echo "=========================================="
@@ -56,19 +55,8 @@ echo ""
 echo "[2/7] 下载项目文件..."
 echo "-------------------------------------------"
 
-for file in index.html ops-server ops-supervisor .env.example; do
-    echo ">> 下载 $file"
-    curl -L "https://raw.githubusercontent.com/Mcloud136/admin/main/$file" -o "$WORK_DIR/$file"
-done
-
-echo ""
-echo ">> 下载前端资源 assets/"
-mkdir -p "$WORK_DIR/assets"
-ASSET_FILES=$(curl -s "https://api.github.com/repos/Mcloud136/admin/contents/assets" | grep -o '"name": *"[^"]*"' | sed 's/"name": *"//;s/"//')
-for f in $ASSET_FILES; do
-    echo "   - $f"
-    curl -L "https://raw.githubusercontent.com/Mcloud136/admin/main/assets/$f" -o "$WORK_DIR/assets/$f"
-done
+echo ">> git clone https://github.com/Mcloud136/admin.git ./"
+git clone https://github.com/Mcloud136/admin.git ./
 echo "[OK] 项目文件下载完成"
 
 # ============================================
