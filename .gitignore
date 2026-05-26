@@ -1,20 +1,4 @@
-# Go
-*.exe
+uploads/
+.env
 *.log
 tmp/
-ops-platform
-
-# Node
-web/node_modules/
-web/dist/
-
-# Environment
-.env
-
-# Uploads
-uploads/
-
-# IDE
-.idea/
-.vscode/
-*.swp
