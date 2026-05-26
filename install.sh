@@ -14,68 +14,104 @@ if [ "$(id -u)" -ne 0 ]; then
     echo "[ERROR] 请使用 root 权限运行: sudo bash install.sh"
     exit 1
 fi
+echo "[OK] root 权限确认"
 
 # Detect OS
 if [ -f /etc/os-release ]; then
     . /etc/os-release
     OS=$ID
+    echo "[OK] 检测到系统: $OS"
 else
     echo "[ERROR] 不支持的操作系统"
     exit 1
 fi
 
+# ============================================
+echo ""
 echo "[1/7] 安装系统依赖..."
+echo "-------------------------------------------"
 
 if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
-    apt-get update -qq
-    apt-get install -y -qq nginx postgresql postgresql-client git curl > /dev/null 2>&1
+    echo ">> apt-get update"
+    apt-get update
+    echo ""
+    echo ">> apt-get install nginx postgresql postgresql-client"
+    apt-get install -y nginx postgresql postgresql-client
 elif [ "$OS" = "centos" ] || [ "$OS" = "rhel" ] || [ "$OS" = "rocky" ]; then
-    yum install -y -q nginx postgresql-server postgresql git curl > /dev/null 2>&1
-    postgresql-setup --initdb 2>/dev/null || true
+    echo ">> yum install nginx postgresql-server postgresql"
+    yum install -y nginx postgresql-server postgresql
+    echo ""
+    echo ">> 初始化 PostgreSQL"
+    postgresql-setup --initdb || true
+    echo ">> 启动 PostgreSQL"
     systemctl enable postgresql
     systemctl start postgresql
 else
     echo "[WARN] 未知系统，请手动安装 Nginx 和 PostgreSQL"
 fi
+echo "[OK] 系统依赖安装完成"
 
+# ============================================
+echo ""
 echo "[2/7] 下载项目文件..."
+echo "-------------------------------------------"
 
-# Download files from GitHub
 for file in index.html ops-server ops-supervisor .env.example; do
-    curl -fsSL "https://raw.githubusercontent.com/Mcloud136/admin/main/$file" -o "$WORK_DIR/$file"
+    echo ">> 下载 $file"
+    curl -L "https://raw.githubusercontent.com/Mcloud136/admin/main/$file" -o "$WORK_DIR/$file"
 done
-curl -fsSL "https://raw.githubusercontent.com/Mcloud136/admin/main/assets/" -o /dev/null 2>/dev/null || true
 
-# Download assets directory
+echo ""
+echo ">> 下载前端资源 assets/"
 mkdir -p "$WORK_DIR/assets"
-# Get asset file list from GitHub API
 ASSET_FILES=$(curl -s "https://api.github.com/repos/Mcloud136/admin/contents/assets" | grep -o '"name": *"[^"]*"' | sed 's/"name": *"//;s/"//')
 for f in $ASSET_FILES; do
-    curl -fsSL "https://raw.githubusercontent.com/Mcloud136/admin/main/assets/$f" -o "$WORK_DIR/assets/$f" 2>/dev/null || true
+    echo "   - $f"
+    curl -L "https://raw.githubusercontent.com/Mcloud136/admin/main/assets/$f" -o "$WORK_DIR/assets/$f"
 done
+echo "[OK] 项目文件下载完成"
 
+# ============================================
+echo ""
 echo "[3/7] 设置文件权限..."
+echo "-------------------------------------------"
 
+echo ">> chmod +x ops-server"
 chmod +x "$WORK_DIR/ops-server"
+echo ">> chmod +x ops-supervisor"
 chmod +x "$WORK_DIR/ops-supervisor"
+echo ">> 创建 uploads/ 目录"
 mkdir -p "$WORK_DIR/uploads/branding"
 mkdir -p "$WORK_DIR/uploads/kb"
+echo "[OK] 权限设置完成"
 
+# ============================================
+echo ""
 echo "[4/7] 创建数据库..."
+echo "-------------------------------------------"
 
-# Create database
-sudo -u postgres psql -c "CREATE DATABASE ops_platform;" 2>/dev/null || echo "数据库已存在，跳过"
+echo ">> 确保 PostgreSQL 运行"
+systemctl start postgresql || true
+sleep 2
 
+echo ">> CREATE DATABASE ops_platform"
+sudo -u postgres psql -c "CREATE DATABASE ops_platform;" || echo "   数据库已存在，跳过"
+echo "[OK] 数据库准备完成"
+
+# ============================================
+echo ""
 echo "[5/7] 配置 Nginx..."
+echo "-------------------------------------------"
 
-# Get server IP
 SERVER_IP=$(hostname -I | awk '{print $1}')
+echo ">> 服务器 IP: $SERVER_IP"
 
 NGINX_CONF="/etc/nginx/sites-available/ops-platform"
 if [ "$OS" = "centos" ] || [ "$OS" = "rhel" ] || [ "$OS" = "rocky" ]; then
     NGINX_CONF="/etc/nginx/conf.d/ops-platform.conf"
 fi
 
+echo ">> 写入 Nginx 配置: $NGINX_CONF"
 cat > "$NGINX_CONF" << NGINXEOF
 server {
     listen 80;
@@ -117,16 +153,24 @@ server {
 }
 NGINXEOF
 
-# Enable site
 if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
-    ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/ops-platform 2>/dev/null || true
-    rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
+    echo ">> 创建 sites-enabled 软链接"
+    ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/ops-platform
+    rm -f /etc/nginx/sites-enabled/default
 fi
 
-nginx -t && systemctl reload nginx
+echo ">> 测试 Nginx 配置"
+nginx -t
+echo ">> 重载 Nginx"
+systemctl reload nginx || systemctl restart nginx
+echo "[OK] Nginx 配置完成"
 
+# ============================================
+echo ""
 echo "[6/7] 配置系统服务..."
+echo "-------------------------------------------"
 
+echo ">> 写入 systemd 服务文件"
 cat > /etc/systemd/system/ops-platform.service << SVCEOF
 [Unit]
 Description=Ops Platform Supervisor
@@ -144,29 +188,36 @@ RestartSec=5
 WantedBy=multi-user.target
 SVCEOF
 
+echo ">> systemctl daemon-reload"
 systemctl daemon-reload
+echo ">> systemctl enable ops-platform"
 systemctl enable ops-platform
+echo ">> systemctl start ops-platform"
 systemctl start ops-platform
+echo ">> 等待服务启动..."
+sleep 3
+echo ">> 检查服务状态"
+systemctl status ops-platform --no-pager || true
+echo "[OK] 系统服务配置完成"
 
-echo "[7/7] 启动完成"
+# ============================================
 echo ""
-echo "=========================================="
-echo "  安装完成！"
+echo "[7/7] 安装完成"
 echo "=========================================="
 echo ""
-echo "  访问地址: http://$SERVER_IP"
+echo "  访问地址: http://${SERVER_IP}"
 echo ""
 echo "  首次访问将进入安装向导，请按提示完成："
-echo "  - 数据库信息（默认 postgres 用户）"
-echo "  - 管理员账号密码"
-echo "  - 平台名称和公司名称"
+echo "    1. 数据库信息（默认 postgres 用户）"
+echo "    2. 管理员账号密码"
+echo "    3. 平台名称和公司名称"
 echo ""
-echo "  API 文档: http://$SERVER_IP/swagger/index.html"
+echo "  API 文档: http://${SERVER_IP}/swagger/index.html"
 echo ""
-echo "  服务管理:"
+echo "  服务管理命令:"
 echo "    systemctl start ops-platform    # 启动"
 echo "    systemctl stop ops-platform     # 停止"
 echo "    systemctl restart ops-platform  # 重启"
 echo "    systemctl status ops-platform   # 状态"
-echo "    journalctl -u ops-platform -f   # 日志"
+echo "    journalctl -u ops-platform -f   # 实时日志"
 echo ""

@@ -5,10 +5,9 @@ set -e
 # 运维管理平台 - 一键安装脚本（国内版）
 # ============================================
 
-# Gitee 仓库地址（请替换为你的 Gitee 仓库地址）
-GITEE_USER="你的Gitee用户名"
-GITEE_REPO="admin"
-RAW_BASE="https://gitee.com/${GITEE_USER}/${GITEE_REPO}/raw/main"
+GITEE_USER="wxbns"
+GITEE_REPO="Team-Management"
+RAW_BASE="https://gitee.com/wxbns/Team-Management/raw/main"
 
 WORK_DIR=$(pwd)
 
@@ -19,149 +18,184 @@ echo ""
 
 # Check root
 if [ "$(id -u)" -ne 0 ]; then
-    echo "[ERROR] 请使用 root 权限运行: sudo bash install.sh"
+    echo "[ERROR] 请使用 root 权限运行: sudo bash install-cn.sh"
     exit 1
 fi
+echo "[OK] root 权限确认"
 
 # Detect OS
 if [ -f /etc/os-release ]; then
     . /etc/os-release
     OS=$ID
-    VER=$VERSION_ID
+    echo "[OK] 检测到系统: $OS"
 else
     echo "[ERROR] 不支持的操作系统"
     exit 1
 fi
 
 # ============================================
-# [1/8] 配置国内镜像源
-# ============================================
+echo ""
 echo "[1/8] 配置国内镜像源..."
+echo "-------------------------------------------"
 
 if [ "$OS" = "ubuntu" ]; then
-    # 备份原源
+    echo ">> 备份原源: /etc/apt/sources.list"
     cp /etc/apt/sources.list /etc/apt/sources.list.bak 2>/dev/null || true
-
-    # 使用阿里云镜像
     CODENAME=$(lsb_release -cs 2>/dev/null || echo "jammy")
+    echo ">> 系统代号: $CODENAME"
+    echo ">> 写入阿里云镜像源"
     cat > /etc/apt/sources.list << APTLIST
 deb http://mirrors.aliyun.com/ubuntu/ ${CODENAME} main restricted universe multiverse
 deb http://mirrors.aliyun.com/ubuntu/ ${CODENAME}-updates main restricted universe multiverse
 deb http://mirrors.aliyun.com/ubuntu/ ${CODENAME}-security main restricted universe multiverse
 deb http://mirrors.aliyun.com/ubuntu/ ${CODENAME}-backports main restricted universe multiverse
 APTLIST
+    echo "[OK] Ubuntu 镜像源已切换为阿里云"
 
 elif [ "$OS" = "debian" ]; then
+    echo ">> 备份原源"
     cp /etc/apt/sources.list /etc/apt/sources.list.bak 2>/dev/null || true
     CODENAME=$(lsb_release -cs 2>/dev/null || echo "bookworm")
+    echo ">> 系统代号: $CODENAME"
+    echo ">> 写入阿里云镜像源"
     cat > /etc/apt/sources.list << APTLIST
 deb http://mirrors.aliyun.com/debian/ ${CODENAME} main contrib non-free non-free-firmware
 deb http://mirrors.aliyun.com/debian/ ${CODENAME}-updates main contrib non-free non-free-firmware
 deb http://mirrors.aliyun.com/debian/ ${CODENAME}-security main contrib non-free non-free-firmware
 APTLIST
+    echo "[OK] Debian 镜像源已切换为阿里云"
 
 elif [ "$OS" = "centos" ] || [ "$OS" = "rocky" ] || [ "$OS" = "almalinux" ]; then
-    # 替换为阿里云镜像
-    if [ -d /etc/yum.repos.d ]; then
-        cp /etc/yum.repos.d/*.repo /etc/yum.repos.d/*.repo.bak 2>/dev/null || true
-        if [ "$OS" = "centos" ]; then
-            sed -i 's|mirror.centos.org|mirrors.aliyun.com|g' /etc/yum.repos.d/*.repo
-        fi
+    echo ">> 备份原源"
+    cp /etc/yum.repos.d/*.repo /etc/yum.repos.d/*.repo.bak 2>/dev/null || true
+    if [ "$OS" = "centos" ]; then
+        echo ">> 替换为阿里云镜像"
+        sed -i 's|mirror.centos.org|mirrors.aliyun.com|g' /etc/yum.repos.d/*.repo
     fi
+    echo "[OK] YUM 镜像源已切换为阿里云"
 fi
 
+# ============================================
+echo ""
 echo "[2/8] 安装系统依赖..."
-
-apt-get update -qq 2>/dev/null || yum makecache -q 2>/dev/null || true
+echo "-------------------------------------------"
 
 if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
-    apt-get install -y -qq nginx postgresql postgresql-client > /dev/null 2>&1
+    echo ">> apt-get update"
+    apt-get update
+    echo ""
+    echo ">> apt-get install nginx postgresql postgresql-client"
+    apt-get install -y nginx postgresql postgresql-client
 elif [ "$OS" = "centos" ] || [ "$OS" = "rocky" ] || [ "$OS" = "almalinux" ]; then
-    yum install -y -q nginx postgresql-server postgresql > /dev/null 2>&1
-    postgresql-setup --initdb 2>/dev/null || true
+    echo ">> yum install nginx postgresql-server postgresql"
+    yum install -y nginx postgresql-server postgresql
+    echo ""
+    echo ">> 初始化 PostgreSQL"
+    postgresql-setup --initdb || true
+    echo ">> 启动 PostgreSQL"
     systemctl enable postgresql
     systemctl start postgresql
 fi
+echo "[OK] 系统依赖安装完成"
 
-# 配置 PostgreSQL 使用 UTF-8
-sudo -u postgres psql -c "UPDATE pg_database SET encoding = pg_char_to_encoding('UTF8') WHERE datname = 'template0';" 2>/dev/null || true
-
-echo "[3/8] 下载项目文件..."
+# ============================================
+echo ""
+echo "[3/8] 下载项目文件 (Gitee)..."
+echo "-------------------------------------------"
 
 download_file() {
     local url="$1"
     local dest="$2"
+    local name=$(basename "$dest")
     local max_retries=3
     local retry=0
 
     while [ $retry -lt $max_retries ]; do
-        if curl -fsSL --connect-timeout 10 --max-time 120 "$url" -o "$dest" 2>/dev/null; then
+        echo "   >> 下载 $name"
+        if curl -L --connect-timeout 15 --max-time 300 "$url" -o "$dest"; then
+            echo "   [OK] $name"
             return 0
         fi
         retry=$((retry + 1))
-        echo "  重试 ($retry/$max_retries)..."
-        sleep 2
+        echo "   [RETRY] $name ($retry/$max_retries)"
+        sleep 3
     done
 
-    echo "[WARN] 下载失败: $url"
+    echo "   [FAIL] $name - $url"
     return 1
 }
 
-# 下载二进制文件
-echo "  下载 ops-server..."
+echo ">> 下载后端二进制"
 download_file "${RAW_BASE}/ops-server" "$WORK_DIR/ops-server"
 
-echo "  下载 ops-supervisor..."
+echo ">> 下载守护进程"
 download_file "${RAW_BASE}/ops-supervisor" "$WORK_DIR/ops-supervisor"
 
-echo "  下载前端文件..."
+echo ">> 下载前端文件"
 download_file "${RAW_BASE}/index.html" "$WORK_DIR/index.html"
 download_file "${RAW_BASE}/.env.example" "$WORK_DIR/.env.example"
 
-# 下载 assets 目录
+echo ""
+echo ">> 下载前端资源 assets/"
 mkdir -p "$WORK_DIR/assets"
 
-# 从 Gitee API 获取文件列表
-echo "  下载前端资源..."
 ASSET_URL="https://gitee.com/api/v5/repos/${GITEE_USER}/${GITEE_REPO}/contents/assets"
-ASSET_FILES=$(curl -s --connect-timeout 10 "$ASSET_URL" 2>/dev/null | grep -o '"name":"[^"]*"' | sed 's/"name":"//;s/"//' || echo "")
+echo "   >> 获取文件列表: $ASSET_URL"
+ASSET_FILES=$(curl -s --connect-timeout 15 "$ASSET_URL" | grep -o '"name":"[^"]*"' | sed 's/"name":"//;s/"//' || echo "")
 
 if [ -n "$ASSET_FILES" ]; then
+    COUNT=$(echo "$ASSET_FILES" | wc -w)
+    echo "   >> 共 $COUNT 个文件"
     for f in $ASSET_FILES; do
         download_file "${RAW_BASE}/assets/${f}" "$WORK_DIR/assets/${f}"
     done
 else
-    echo "  [WARN] 无法获取资源列表，请手动下载 assets/ 目录"
+    echo "   [WARN] 无法获取资源列表，请手动下载 assets/ 目录"
 fi
+echo "[OK] 项目文件下载完成"
 
+# ============================================
+echo ""
 echo "[4/8] 设置文件权限..."
+echo "-------------------------------------------"
 
+echo ">> chmod +x ops-server"
 chmod +x "$WORK_DIR/ops-server"
+echo ">> chmod +x ops-supervisor"
 chmod +x "$WORK_DIR/ops-supervisor"
+echo ">> 创建 uploads/ 目录"
 mkdir -p "$WORK_DIR/uploads/branding"
 mkdir -p "$WORK_DIR/uploads/kb"
+echo "[OK] 权限设置完成"
 
+# ============================================
+echo ""
 echo "[5/8] 创建数据库..."
+echo "-------------------------------------------"
 
-# 确保 PostgreSQL 运行
-systemctl start postgresql 2>/dev/null || true
+echo ">> 确保 PostgreSQL 运行"
+systemctl start postgresql || true
 sleep 2
 
-# 创建数据库
-sudo -u postgres psql -c "CREATE DATABASE ops_platform ENCODING 'UTF8';" 2>/dev/null || echo "  数据库已存在，跳过"
+echo ">> CREATE DATABASE ops_platform"
+sudo -u postgres psql -c "CREATE DATABASE ops_platform ENCODING 'UTF8';" || echo "   数据库已存在，跳过"
+echo "[OK] 数据库准备完成"
 
+# ============================================
+echo ""
 echo "[6/8] 配置 Nginx..."
+echo "-------------------------------------------"
 
 SERVER_IP=$(hostname -I | awk '{print $1}')
+echo ">> 服务器 IP: $SERVER_IP"
 
 if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
     NGINX_CONF="/etc/nginx/sites-available/ops-platform"
-    SITES_ENABLED="/etc/nginx/sites-enabled"
 elif [ "$OS" = "centos" ] || [ "$OS" = "rocky" ] || [ "$OS" = "almalinux" ]; then
     NGINX_CONF="/etc/nginx/conf.d/ops-platform.conf"
-    SITES_ENABLED=""
 fi
 
+echo ">> 写入 Nginx 配置: $NGINX_CONF"
 cat > "$NGINX_CONF" << NGINXEOF
 server {
     listen 80;
@@ -203,15 +237,24 @@ server {
 }
 NGINXEOF
 
-if [ -n "$SITES_ENABLED" ]; then
-    ln -sf "$NGINX_CONF" "$SITES_ENABLED/ops-platform" 2>/dev/null || true
-    rm -f "$SITES_ENABLED/default" 2>/dev/null || true
+if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
+    echo ">> 创建 sites-enabled 软链接"
+    ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/ops-platform
+    rm -f /etc/nginx/sites-enabled/default
 fi
 
-nginx -t 2>/dev/null && systemctl reload nginx 2>/dev/null || systemctl restart nginx 2>/dev/null
+echo ">> 测试 Nginx 配置"
+nginx -t
+echo ">> 重载 Nginx"
+systemctl reload nginx || systemctl restart nginx
+echo "[OK] Nginx 配置完成"
 
+# ============================================
+echo ""
 echo "[7/8] 配置系统服务..."
+echo "-------------------------------------------"
 
+echo ">> 写入 systemd 服务: /etc/systemd/system/ops-platform.service"
 cat > /etc/systemd/system/ops-platform.service << SVCEOF
 [Unit]
 Description=Ops Platform Supervisor
@@ -229,27 +272,36 @@ RestartSec=5
 WantedBy=multi-user.target
 SVCEOF
 
+echo ">> systemctl daemon-reload"
 systemctl daemon-reload
+echo ">> systemctl enable ops-platform"
 systemctl enable ops-platform
+echo ">> systemctl start ops-platform"
 systemctl start ops-platform
+echo ">> 等待服务启动..."
+sleep 3
+echo ">> 检查服务状态"
+systemctl status ops-platform --no-pager || true
+echo "[OK] 系统服务配置完成"
 
-echo "[8/8] 启动完成"
+# ============================================
 echo ""
-echo "=========================================="
-echo "  安装完成！"
+echo "[8/8] 安装完成"
 echo "=========================================="
 echo ""
 echo "  访问地址: http://${SERVER_IP}"
 echo ""
 echo "  首次访问将进入安装向导，请按提示完成："
-echo "  - 数据库信息（默认 postgres 用户）"
-echo "  - 管理员账号密码"
-echo "  - 平台名称和公司名称"
+echo "    1. 数据库信息（默认 postgres 用户）"
+echo "    2. 管理员账号密码"
+echo "    3. 平台名称和公司名称"
 echo ""
-echo "  服务管理:"
+echo "  API 文档: http://${SERVER_IP}/swagger/index.html"
+echo ""
+echo "  服务管理命令:"
 echo "    systemctl start ops-platform    # 启动"
 echo "    systemctl stop ops-platform     # 停止"
 echo "    systemctl restart ops-platform  # 重启"
 echo "    systemctl status ops-platform   # 状态"
-echo "    journalctl -u ops-platform -f   # 日志"
+echo "    journalctl -u ops-platform -f   # 实时日志"
 echo ""
