@@ -36,6 +36,9 @@ if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
     echo ""
     echo ">> apt-get install nginx postgresql postgresql-client"
     apt-get install -y nginx postgresql postgresql-client
+    echo ""
+    echo ">> 设置 postgres 用户密码"
+    sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';"
 elif [ "$OS" = "centos" ] || [ "$OS" = "rhel" ] || [ "$OS" = "rocky" ]; then
     echo ">> yum install nginx postgresql-server postgresql"
     yum install -y nginx postgresql-server postgresql
@@ -45,6 +48,9 @@ elif [ "$OS" = "centos" ] || [ "$OS" = "rhel" ] || [ "$OS" = "rocky" ]; then
     echo ">> 启动 PostgreSQL"
     systemctl enable postgresql
     systemctl start postgresql
+    echo ""
+    echo ">> 设置 postgres 用户密码"
+    sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';"
 else
     echo "[WARN] 未知系统，请手动安装 Nginx 和 PostgreSQL"
 fi
