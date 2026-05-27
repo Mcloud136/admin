@@ -61,8 +61,35 @@ echo ""
 echo "[2/7] 下载项目文件..."
 echo "-------------------------------------------"
 
-echo ">> git clone https://github.com/Mcloud136/admin.git ./"
-git clone https://github.com/Mcloud136/admin.git ./
+# 停止旧服务（如果存在）
+systemctl stop ops-platform 2>/dev/null || true
+
+# 清理旧的安装标记和配置（保留 uploads）
+rm -f "$WORK_DIR/.initialized" 2>/dev/null
+rm -f "$WORK_DIR/.env" 2>/dev/null
+echo "[OK] 已清理旧的安装标记和配置"
+
+# 下载项目文件
+if [ -f "$WORK_DIR/ops-server" ] || [ -f "$WORK_DIR/index.html" ]; then
+    echo ">> 检测到已有文件，使用 git pull 更新..."
+    if [ -d "$WORK_DIR/.git" ]; then
+        cd "$WORK_DIR" && git pull origin main 2>&1
+    else
+        echo ">> 非 git 仓库，重新克隆..."
+        # 备份 uploads
+        [ -d "$WORK_DIR/uploads" ] && cp -r "$WORK_DIR/uploads" /tmp/ops-uploads-backup 2>/dev/null
+        cd /tmp && rm -rf ops-clone && git clone https://github.com/Mcloud136/admin.git ops-clone 2>&1
+        # 覆盖除 uploads 外的所有文件
+        rsync -a --exclude='uploads' /tmp/ops-clone/ "$WORK_DIR/" 2>/dev/null || cp -r /tmp/ops-clone/* "$WORK_DIR/"
+        rm -rf /tmp/ops-clone
+        # 恢复 uploads
+        [ -d /tmp/ops-uploads-backup ] && cp -r /tmp/ops-uploads-backup/* "$WORK_DIR/uploads/" 2>/dev/null
+        rm -rf /tmp/ops-uploads-backup
+    fi
+else
+    echo ">> git clone https://github.com/Mcloud136/admin.git ./"
+    git clone https://github.com/Mcloud136/admin.git ./ 2>&1
+fi
 echo "[OK] 项目文件下载完成"
 
 # ============================================
