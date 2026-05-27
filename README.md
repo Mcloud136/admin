@@ -63,10 +63,10 @@
 
 ```bash
 # 下载项目文件到服务器任意目录
-# 中文版（含国内镜像源配置）
+# 国内（含国内镜像源配置）
 sudo bash install-cn.sh
 
-# 英文版
+# 海外
 sudo bash install.sh
 ```
 
