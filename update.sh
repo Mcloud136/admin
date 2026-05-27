@@ -6,8 +6,8 @@ set -e
 # 自动检测安装来源（GitHub / Gitee），从对应仓库拉取最新版本
 # ============================================
 
-INSTALL_DIR="/opt/ops-platform"
-BACKUP_DIR="/opt/ops-platform-backup-$(date +%Y%m%d%H%M%S)"
+INSTALL_DIR="$(pwd)"
+BACKUP_DIR="${INSTALL_DIR}-backup-$(date +%Y%m%d%H%M%S)"
 SERVICE_NAME="ops-platform"
 
 # 来源检测

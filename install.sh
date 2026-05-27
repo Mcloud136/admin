@@ -6,7 +6,7 @@ set -e
 # ============================================
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-INSTALL_DIR="/opt/ops-platform"
+INSTALL_DIR="$(pwd)"
 SOURCE="github"
 
 echo "=========================================="

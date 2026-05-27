@@ -62,7 +62,9 @@
 ### 一键安装（推荐）
 
 ```bash
-# 下载项目文件到服务器任意目录
+# 下载项目文件到服务器任意目录，进入目录后执行：
+cd /你的安装目录
+
 # 国内（含国内镜像源配置）
 sudo bash install-cn.sh
 
@@ -73,7 +75,7 @@ sudo bash install.sh
 安装脚本自动完成：
 1. 配置国内镜像源（中文版）
 2. 安装 Nginx + PostgreSQL
-3. 部署项目文件到 `/opt/ops-platform`
+3. 部署项目文件到当前目录
 4. 创建数据库
 5. 配置 Nginx 反向代理
 6. 配置 systemd 守护进程服务
@@ -140,7 +142,7 @@ server {
     listen 80;
     server_name 你的域名或IP;
 
-    root /opt/ops-platform;
+    root /你的安装目录;
     index index.html;
 
     client_max_body_size 50m;
@@ -182,8 +184,8 @@ After=network.target postgresql.service
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/ops-platform
-ExecStart=/opt/ops-platform/ops-supervisor
+WorkingDirectory=/你的安装目录
+ExecStart=/你的安装目录/ops-supervisor
 Restart=always
 RestartSec=5
 
@@ -194,8 +196,8 @@ WantedBy=multi-user.target
 ## 更新升级
 
 ```bash
-# 进入安装目录
-cd /opt/ops-platform
+# 进入安装目录后执行：
+cd /你的安装目录
 
 # 国内服务器（使用镜像加速）
 sudo bash update-cn.sh
@@ -205,8 +207,8 @@ sudo bash update.sh
 ```
 
 更新脚本自动完成：
-1. 备份当前版本到 `/opt/ops-platform-backup-时间戳/`
-2. 下载最新文件
+1. 备份当前版本到 `安装目录-backup-时间戳/`
+2. 从 GitHub 或 Gitee 下载最新文件（根据安装来源自动选择）
 3. 仅替换二进制和前端文件
 4. **保留** `.env`、`uploads/`、`.initialized`、数据库
 5. 重启服务

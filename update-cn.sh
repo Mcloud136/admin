@@ -7,8 +7,8 @@ set -e
 # GitHub 来源自动使用国内镜像加速
 # ============================================
 
-INSTALL_DIR="/opt/ops-platform"
-BACKUP_DIR="/opt/ops-platform-backup-$(date +%Y%m%d%H%M%S)"
+INSTALL_DIR="$(pwd)"
+BACKUP_DIR="${INSTALL_DIR}-backup-$(date +%Y%m%d%H%M%S)"
 SERVICE_NAME="ops-platform"
 
 # 下载地址
