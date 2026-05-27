@@ -227,14 +227,14 @@ fi
 
 # ============================================
 echo ""
-echo "[6/6] 启动服务..."
+echo "[6/6] 重启服务..."
 echo "-------------------------------------------"
 
-systemctl start "$SERVICE_NAME"
+systemctl restart "$SERVICE_NAME" 2>/dev/null || systemctl start "$SERVICE_NAME"
 sleep 3
 
 if systemctl is-active --quiet "$SERVICE_NAME"; then
-    echo "[OK] 服务启动成功"
+    echo "[OK] 服务重启成功"
     echo ""
     echo "=========================================="
     echo "  更新完成！"
