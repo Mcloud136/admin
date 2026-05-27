@@ -191,6 +191,27 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
+## 更新升级
+
+```bash
+# 进入安装目录
+cd /opt/ops-platform
+
+# 国内服务器（使用镜像加速）
+sudo bash update-cn.sh
+
+# 海外服务器
+sudo bash update.sh
+```
+
+更新脚本自动完成：
+1. 备份当前版本到 `/opt/ops-platform-backup-时间戳/`
+2. 下载最新文件
+3. 仅替换二进制和前端文件
+4. **保留** `.env`、`uploads/`、`.initialized`、数据库
+5. 重启服务
+6. 失败自动回滚
+
 ## 服务管理
 
 ```bash
@@ -215,6 +236,8 @@ journalctl -u ops-platform -f    # 实时日志
 ├── ops-supervisor          守护进程（自动重启 + 信号处理）
 ├── install.sh              一键安装脚本（英文）
 ├── install-cn.sh           一键安装脚本（国内版）
+├── update.sh               一键更新脚本（英文）
+├── update-cn.sh            一键更新脚本（国内版）
 └── .env.example            环境变量模板
 ```
 
