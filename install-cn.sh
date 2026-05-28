@@ -85,23 +85,36 @@ if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
     echo ""
 
     # 配置 PostgreSQL 允许密码认证
-    PG_VERSION=$(sudo -u postgres psql -t -c "SELECT version();" 2>/dev/null | grep -oP '\d+' | head -1)
-    PG_CONF_DIR=$(find /etc/postgresql -maxdepth 1 -type d 2>/dev/null | head -1)
+    PG_CONF_DIR=$(find /etc/postgresql -maxdepth 2 -name "pg_hba.conf" 2>/dev/null | head -1 | xargs dirname 2>/dev/null)
     if [ -z "$PG_CONF_DIR" ]; then
+        PG_VERSION=$(pg_config --version 2>/dev/null | grep -o '[0-9]*' | head -1)
         PG_CONF_DIR="/etc/postgresql/${PG_VERSION}/main"
     fi
 
-    echo ">> 配置 PostgreSQL 密码认证"
-    if [ -f "$PG_CONF_DIR/pg_hba.conf" ]; then
-        cp "$PG_CONF_DIR/pg_hba.conf" "$PG_CONF_DIR/pg_hba.conf.bak"
-        sed -i 's/local\s*all\s*all\s*peer/local   all             all                                     md5/' "$PG_CONF_DIR/pg_hba.conf"
-        sed -i 's/host\s*all\s*all\s*127.0.0.1\/32\s*scram-sha-256/host    all             all             127.0.0.1/32            md5/' "$PG_CONF_DIR/pg_hba.conf"
-        sed -i 's/host\s*all\s*all\s*::1\/128\s*scram-sha-256/host    all             all             ::1/128                 md5/' "$PG_CONF_DIR/pg_hba.conf"
+    echo ">> 配置 PostgreSQL 密码认证 (目录: $PG_CONF_DIR)"
+
+    if [ -d "$PG_CONF_DIR" ]; then
+        cp "$PG_CONF_DIR/pg_hba.conf" "$PG_CONF_DIR/pg_hba.conf.bak" 2>/dev/null || true
+        cat > "$PG_CONF_DIR/pg_hba.conf" << 'PGHBA'
+# PostgreSQL Client Authentication Configuration
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+local   all             all                                     md5
+host    all             all             127.0.0.1/32            md5
+host    all             all             ::1/128                 md5
+host    all             all             0.0.0.0/0               md5
+PGHBA
+        echo "[OK] pg_hba.conf 已配置（密码认证）"
     fi
 
     if [ -f "$PG_CONF_DIR/postgresql.conf" ]; then
-        sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/" "$PG_CONF_DIR/postgresql.conf"
-        sed -i "s/listen_addresses = 'localhost'/listen_addresses = '*'/" "$PG_CONF_DIR/postgresql.conf"
+        if grep -q "^#listen_addresses" "$PG_CONF_DIR/postgresql.conf" 2>/dev/null; then
+            sed -i "s/^#listen_addresses.*/listen_addresses = '*'/" "$PG_CONF_DIR/postgresql.conf"
+        elif grep -q "^listen_addresses" "$PG_CONF_DIR/postgresql.conf" 2>/dev/null; then
+            sed -i "s/^listen_addresses.*/listen_addresses = '*'/" "$PG_CONF_DIR/postgresql.conf"
+        else
+            echo "listen_addresses = '*'" >> "$PG_CONF_DIR/postgresql.conf"
+        fi
+        echo "[OK] listen_addresses 已配置"
     fi
 
     systemctl restart postgresql
