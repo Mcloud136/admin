@@ -168,7 +168,11 @@ systemctl stop ops-platform 2>/dev/null || true
 rm -f "$WORK_DIR/.initialized" 2>/dev/null
 rm -f "$WORK_DIR/.env" 2>/dev/null
 
-if [ -f "$WORK_DIR/ops-server" ] || [ -f "$WORK_DIR/index.html" ]; then
+# 检测目录是否非空（任何已有文件都走重装逻辑）
+DIR_EMPTY=true
+[ "$(ls -A "$WORK_DIR" 2>/dev/null)" ] && DIR_EMPTY=false
+
+if [ "$DIR_EMPTY" = false ]; then
     echo ">> 检测到已有文件，重新下载..."
     [ -d "$WORK_DIR/uploads" ] && cp -r "$WORK_DIR/uploads" /tmp/ops-uploads-backup 2>/dev/null
     cd /tmp && rm -rf ops-clone
