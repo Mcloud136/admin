@@ -261,7 +261,7 @@ if [ ! -f /etc/nginx/ssl/server.crt ]; then
     echo "[OK] SSL 证书已生成"
 fi
 
-cat > "$NGINX_CONF" << NGINXEOF
+cat > "$NGINX_CONF" << 'NGINXEOF'
 upstream ops_backend {
     server 127.0.0.1:8080;
     keepalive 32;
@@ -271,7 +271,7 @@ upstream ops_backend {
 server {
     listen 80;
     server_name _;
-    return 301 https://\\;
+    return 301 https://$host$request_uri;
 }
 
 # HTTPS
@@ -298,10 +298,10 @@ server {
         proxy_pass http://ops_backend/api/;
         proxy_http_version 1.1;
         proxy_set_header Connection "";
-        proxy_set_header Host \;
-        proxy_set_header X-Real-IP \;
-        proxy_set_header X-Forwarded-For \;
-        proxy_set_header X-Forwarded-Proto \;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_connect_timeout 10s;
         proxy_send_timeout    300s;
         proxy_read_timeout    300s;
@@ -316,7 +316,7 @@ server {
         add_header Cache-Control "no-cache, no-store, must-revalidate, no-transform" always;
         add_header Pragma "no-cache" always;
         add_header Expires "0" always;
-        try_files \ \/ /index.html;
+        try_files $uri $uri/ /index.html;
     }
 
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
@@ -333,12 +333,12 @@ NGINXEOF
 sed -i "s|__WORK_DIR__|$WORK_DIR|g" "$NGINX_CONF"
 
 NGINX_HTTP="/etc/nginx/conf.d/ops-platform-http.conf"
-cat > "$NGINX_HTTP" << NGINXEOF
+cat > "$NGINX_HTTP" << 'NGINXEOF'
 server {
     listen 80;
     server_name _;
 
-    root $WORK_DIR;
+    root __WORK_DIR__;
     index index.html;
 
     client_max_body_size 50m;
@@ -353,10 +353,10 @@ server {
         proxy_pass http://ops_backend/api/;
         proxy_http_version 1.1;
         proxy_set_header Connection "";
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
 
         proxy_connect_timeout 10s;
         proxy_send_timeout    300s;
@@ -373,7 +373,7 @@ server {
         add_header Cache-Control "no-cache, no-store, must-revalidate, no-transform" always;
         add_header Pragma "no-cache" always;
         add_header Expires "0" always;
-        try_files \$uri \$uri/ /index.html;
+        try_files $uri $uri/ /index.html;
     }
 
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
