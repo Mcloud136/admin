@@ -228,14 +228,14 @@ upstream ops_backend {
 
 # HTTP -> redirect to HTTPS
 server {
-    listen 80;
+    listen 8088;
     server_name _;
-    return 301 https://\$host\$request_uri;
+    return 301 https://\$host:8089\$request_uri;
 }
 
 # HTTPS
 server {
-    listen 443 ssl;
+    listen 8089 ssl;
     server_name _;
 
     ssl_certificate /etc/nginx/ssl/server.crt;

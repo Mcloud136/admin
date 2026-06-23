@@ -269,14 +269,14 @@ upstream ops_backend {
 
 # HTTP -> redirect to HTTPS
 server {
-    listen 80;
+    listen 8088;
     server_name _;
-    return 301 https://$host$request_uri;
+    return 301 https://$host:8089$request_uri;
 }
 
 # HTTPS
 server {
-    listen 443 ssl;
+    listen 8089 ssl;
     server_name _;
     ssl_certificate /etc/nginx/ssl/server.crt;
     ssl_certificate_key /etc/nginx/ssl/server.key;
@@ -335,7 +335,7 @@ sed -i "s|__WORK_DIR__|$WORK_DIR|g" "$NGINX_CONF"
 NGINX_HTTP="/etc/nginx/conf.d/ops-platform-http.conf"
 cat > "$NGINX_HTTP" << 'NGINXEOF'
 server {
-    listen 80;
+    listen 8088;
     server_name _;
 
     root __WORK_DIR__;
