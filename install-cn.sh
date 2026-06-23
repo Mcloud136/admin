@@ -334,11 +334,6 @@ sed -i "s|__WORK_DIR__|$WORK_DIR|g" "$NGINX_CONF"
 
 NGINX_HTTP="/etc/nginx/conf.d/ops-platform-http.conf"
 cat > "$NGINX_HTTP" << NGINXEOF
-upstream ops_backend {
-    server 127.0.0.1:8080;
-    keepalive 32;
-}
-
 server {
     listen 80;
     server_name _;
