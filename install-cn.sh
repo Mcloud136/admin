@@ -57,6 +57,8 @@ echo "-------------------------------------------"
 if [ "$OS" = "ubuntu" ]; then
     echo ">> 备份原源: /etc/apt/sources.list"
     cp /etc/apt/sources.list /etc/apt/sources.list.bak 2>/dev/null || true
+    # Remove DEB822 .sources file (Ubuntu 24.04+) to avoid duplicate warnings
+    rm -f /etc/apt/sources.list.d/ubuntu.sources
     CODENAME=$(lsb_release -cs 2>/dev/null || echo "jammy")
     echo ">> 系统代号: $CODENAME"
     echo ">> 写入阿里云镜像源"
@@ -110,6 +112,8 @@ if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
     rm -f /etc/apt/keyrings/nginx.gpg
     gpg --batch --dearmor -o /etc/apt/keyrings/nginx.gpg < /tmp/nginx.key 2>/dev/null
     rm -f /tmp/nginx.key
+    # Remove DEB822 .sources file if present (Ubuntu 24.04+) to avoid duplicate warnings
+    rm -f /etc/apt/sources.list.d/nginx.sources
     echo "deb [signed-by=/etc/apt/keyrings/nginx.gpg] http://nginx.org/packages/mainline/ubuntu ${CODENAME} nginx" > /etc/apt/sources.list.d/nginx.list
 
     # 添加 PostgreSQL 官方源
@@ -122,6 +126,8 @@ if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
     rm -f /etc/apt/keyrings/pgdg.gpg
     gpg --batch --dearmor -o /etc/apt/keyrings/pgdg.gpg < /tmp/pgdg.key 2>/dev/null
     rm -f /tmp/pgdg.key
+    # Remove DEB822 .sources file if present (Ubuntu 24.04+) to avoid duplicate warnings
+    rm -f /etc/apt/sources.list.d/pgdg.sources
     echo "deb [signed-by=/etc/apt/keyrings/pgdg.gpg] http://apt.postgresql.org/pub/repos/apt ${PG_CODENAME}-pgdg main" > /etc/apt/sources.list.d/pgdg.list
 
     echo ">> apt-get update"

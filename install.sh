@@ -64,6 +64,7 @@ if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
     rm -f /etc/apt/keyrings/nginx.gpg
     gpg --batch --dearmor -o /etc/apt/keyrings/nginx.gpg < /tmp/nginx.key 2>/dev/null
     rm -f /tmp/nginx.key
+    rm -f /etc/apt/sources.list.d/nginx.sources
     echo "deb [signed-by=/etc/apt/keyrings/nginx.gpg] http://nginx.org/packages/mainline/ubuntu ${CODENAME} nginx" > /etc/apt/sources.list.d/nginx.list
 
     # 添加 PostgreSQL 官方源
@@ -76,6 +77,7 @@ if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
     rm -f /etc/apt/keyrings/pgdg.gpg
     gpg --batch --dearmor -o /etc/apt/keyrings/pgdg.gpg < /tmp/pgdg.key 2>/dev/null
     rm -f /tmp/pgdg.key
+    rm -f /etc/apt/sources.list.d/pgdg.sources
     echo "deb [signed-by=/etc/apt/keyrings/pgdg.gpg] http://apt.postgresql.org/pub/repos/apt ${PG_CODENAME}-pgdg main" > /etc/apt/sources.list.d/pgdg.list
 
     echo ">> apt-get update"
