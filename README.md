@@ -6,12 +6,12 @@
 
 **海外服务器：**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Mcloud136/admin/main/install.sh | sudo bash
+mkdir -p /opt/ops-platform && cd /opt/ops-platform && curl -fsSL https://raw.githubusercontent.com/Mcloud136/admin/main/install.sh | tr -d '\r' | sudo bash
 ```
 
 **国内服务器（阿里云镜像 + Gitee 下载）：**
 ```bash
-curl -fsSL https://gitee.com/wxbns/Team-Management/raw/main/install-cn.sh | sudo bash
+mkdir -p /opt/ops-platform && cd /opt/ops-platform && curl -fsSL https://gitee.com/wxbns/Team-Management/raw/main/install-cn.sh | tr -d '\r' | sudo bash
 ```
 
 安装完成后访问 `http://服务器IP` 进入安装向导，按提示完成数据库、管理员、品牌信息配置即可。
